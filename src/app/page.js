@@ -275,15 +275,39 @@ export default function Home() {
             <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">Workspace</span>
           </div>
         </div>
-        <button
-          onClick={handleLogout}
-          className="group flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-red-600 hover:bg-red-50 px-4 py-2 rounded-lg transition-all"
-        >
-          <span>Sign Out</span>
-          <svg className="w-4 h-4 text-slate-400 group-hover:text-red-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-          </svg>
-        </button>
+
+        <div className="flex items-center gap-4">
+          {/* User Profile */}
+          <div className="hidden sm:flex items-center gap-3 pl-6 border-l border-slate-200/50">
+            {session?.user?.user_metadata?.avatar_url ? (
+              <img
+                src={session.user.user_metadata.avatar_url}
+                alt="Profile"
+                className="w-9 h-9 rounded-full ring-2 ring-white shadow-sm"
+              />
+            ) : (
+              <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-xs ring-2 ring-white shadow-sm">
+                {session?.user?.email?.[0]?.toUpperCase()}
+              </div>
+            )}
+            <div className="flex flex-col">
+              <span className="text-sm font-semibold text-slate-700 max-w-[150px] truncate">
+                {session?.user?.user_metadata?.full_name || session?.user?.email?.split('@')[0]}
+              </span>
+              <span className="text-[10px] text-slate-400 font-medium">Free Plan</span>
+            </div>
+          </div>
+
+          <button
+            onClick={handleLogout}
+            className="group flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-red-600 hover:bg-red-50 px-4 py-2 rounded-lg transition-all"
+          >
+            <span className="hidden sm:inline">Sign Out</span>
+            <svg className="w-5 h-5 text-slate-400 group-hover:text-red-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       {/* Main Content */}

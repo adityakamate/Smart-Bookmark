@@ -26,9 +26,7 @@ export default function Login({ onLogin }) {
             <main className="flex-grow flex flex-col items-center justify-center text-center px-4 relative z-10">
 
                 <div className="mb-8 animate-fade-in-up">
-                    <span className="px-4 py-1.5 rounded-full border border-indigo-100/50 bg-white/60 backdrop-blur-md text-xs font-semibold text-indigo-600 shadow-sm">
-                        ✨ Redefining Bookmarks
-                    </span>
+      
                 </div>
 
                 <h1 className="text-6xl md:text-8xl font-black tracking-tight mb-8 text-slate-900 drop-shadow-sm">
@@ -55,7 +53,7 @@ export default function Login({ onLogin }) {
             </main>
 
             {/* Feature Grid - Glass Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto w-full px-6 py-24 border-t border-slate-200/60 relative z-10">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto w-full px-6 py-24  z-10">
                 {[
                     { title: 'Global Sync', desc: 'Your links, everywhere.', color: 'bg-indigo-50 text-indigo-600' },
                     { title: 'Privacy First', desc: 'Encrypted & secure.', color: 'bg-teal-50 text-teal-600' },

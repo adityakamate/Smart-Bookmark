@@ -99,6 +99,8 @@ export default function Home() {
     mutationFn: async (updatedBookmark) => {
       const { id, ...updates } = updatedBookmark;
 
+      if (!id) throw new Error("Bookmark ID is missing");
+
       const { data, error } = await supabase
         .from('bookmarks')
         .update(updates)
@@ -115,6 +117,7 @@ export default function Home() {
     },
     onMutate: async (updatedBookmark) => {
       await queryClient.cancelQueries({ queryKey: ['bookmarks'] });
+
       const previousBookmarks = queryClient.getQueryData(['bookmarks']);
 
       queryClient.setQueryData(['bookmarks'], (old = []) =>
@@ -124,13 +127,15 @@ export default function Home() {
       return { previousBookmarks };
     },
     onError: (err, newBookmark, context) => {
-      queryClient.setQueryData(['bookmarks'], context.previousBookmarks);
+      if (context?.previousBookmarks) {
+        queryClient.setQueryData(['bookmarks'], context.previousBookmarks);
+      }
       alert(err.message);
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['bookmarks'] });
-      resetForm();
-    },
+      if (typeof resetForm === 'function') resetForm();
+    }
   });
 
   // 5. Delete Mutation

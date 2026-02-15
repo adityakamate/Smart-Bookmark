@@ -3,8 +3,8 @@
 > **The Intelligent Bookmark Manager for the Modern Web.**
 > *Fast. Beautiful. AI-Powered.*
 
-![Aurora Banner](https://via.placeholder.com/1200x400?text=Aurora+Dashboard+Preview)
-*(Replace with actual screenshot)*
+<!-- ![Aurora Banner](https://via.placeholder.com/1200x400?text=Aurora+Dashboard+Preview)
+*(Replace with actual screenshot)* -->
 
 ---
 

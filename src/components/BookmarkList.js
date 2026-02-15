@@ -1,6 +1,6 @@
 import BookmarkItem from './BookmarkItem'
 
-export default function BookmarkList({ bookmarks, onDelete }) {
+export default function BookmarkList({ bookmarks, onDelete, onEdit }) {
     if (bookmarks.length === 0) {
         return (
             <div className="text-center py-12 text-slate-500 text-sm dashboard-card">
@@ -16,6 +16,7 @@ export default function BookmarkList({ bookmarks, onDelete }) {
                     key={bookmark.id}
                     bookmark={bookmark}
                     onDelete={onDelete}
+                    onEdit={onEdit}
                 />
             ))}
         </div>

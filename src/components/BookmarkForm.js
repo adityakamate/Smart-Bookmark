@@ -8,7 +8,9 @@ export default function BookmarkForm({
     tags = [],
     setTags,
     category,
-    setCategory
+    setCategory,
+    isEditing,
+    onCancel
 }) {
     const [tagging, setTagging] = useState(false)
 
@@ -27,7 +29,6 @@ export default function BookmarkForm({
             if (data.category) setCategory(data.category)
             if (data.tags) setTags(data.tags)
         } catch (err) {
-            console.error(err)
             alert(err.message || 'Failed to generate tags')
         } finally {
             setTagging(false)
@@ -37,7 +38,12 @@ export default function BookmarkForm({
     return (
         <div className="dashboard-card p-6 md:p-8">
             <h2 className="text-lg font-semibold text-slate-900 mb-6 flex items-center justify-between">
-                <span className="flex items-center"><span className="text-indigo-600 mr-2 text-xl">+</span> Add New Bookmark</span>
+                <span className="flex items-center">
+                    <span className={`mr-2 text-xl ${isEditing ? 'text-amber-500' : 'text-indigo-600'}`}>
+                        {isEditing ? '✎' : '+'}
+                    </span>
+                    {isEditing ? 'Update Bookmark' : 'Add New Bookmark'}
+                </span>
                 <button
                     type="button"
                     onClick={handleAutoTag}
@@ -55,22 +61,36 @@ export default function BookmarkForm({
                             placeholder="Title (e.g., My Portfolio)"
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
-                            className="dashboard-input p-3 md:p-4 w-full md:w-5/12 text-sm"
+                            className="dashboard-input p-3 md:p-4 w-full md:w-4/12 text-sm"
                         />
                         <input
                             type="url"
                             placeholder="URL (https://example.com)"
                             value={url}
                             onChange={(e) => setUrl(e.target.value)}
-                            className="dashboard-input p-3 md:p-4 w-full md:w-5/12 text-sm"
+                            className="dashboard-input p-3 md:p-4 w-full md:w-4/12 text-sm"
                         />
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="btn-aurora px-6 py-3 md:py-4 rounded-lg text-sm font-semibold whitespace-nowrap disabled:opacity-50 w-full md:w-2/12"
-                        >
-                            {loading ? '...' : 'Add'}
-                        </button>
+                        <div className="flex w-full md:w-4/12 gap-2">
+                            {isEditing && (
+                                <button
+                                    type="button"
+                                    onClick={onCancel}
+                                    className="px-4 py-3 md:py-4 rounded-lg text-sm font-semibold text-slate-500 hover:bg-slate-100 transition-colors w-full"
+                                >
+                                    Cancel
+                                </button>
+                            )}
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className={`px-6 py-3 md:py-4 rounded-lg text-sm font-semibold whitespace-nowrap disabled:opacity-50 w-full transition-all text-white shadow-lg shadow-indigo-200 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 ${isEditing
+                                    ? 'bg-amber-500 hover:bg-amber-600 shadow-amber-200'
+                                    : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200'
+                                    }`}
+                            >
+                                {loading ? '...' : (isEditing ? 'Update' : 'Add')}
+                            </button>
+                        </div>
                     </div>
 
                     {/* Tags & Category Display */}

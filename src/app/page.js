@@ -13,6 +13,7 @@ export default function Home() {
   const [url, setUrl] = useState('')
   const [tags, setTags] = useState([])
   const [category, setCategory] = useState('')
+  const [editingId, setEditingId] = useState(null) // New state for editing
   const queryClient = useQueryClient()
 
   // 1. Session Management
@@ -42,10 +43,10 @@ export default function Home() {
       if (error) throw error
       return data
     },
-    enabled: !!session?.user?.id, // Only fetch if we have a user
+    enabled: !!session?.user?.id,
   })
 
-  // 3. Add Mutation with Optimistic Update
+  // 3. Add Mutation
   const addMutation = useMutation({
     mutationFn: async (newBookmark) => {
       const { data, error } = await supabase
@@ -59,15 +60,11 @@ export default function Home() {
     },
     onMutate: async (newBookmark) => {
       await queryClient.cancelQueries({ queryKey: ['bookmarks'] })
-
       const previousBookmarks = queryClient.getQueryData(['bookmarks'])
-
-      // Optimistically update to the new value
       queryClient.setQueryData(['bookmarks'], (old = []) => [
         { ...newBookmark, id: 'temp-' + Date.now(), created_at: new Date().toISOString() },
         ...old,
       ])
-
       return { previousBookmarks }
     },
     onError: (err, newBookmark, context) => {
@@ -76,14 +73,44 @@ export default function Home() {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['bookmarks'] })
-      setTitle('')
-      setUrl('')
-      setTags([])
-      setCategory('')
+      resetForm()
     },
   })
 
-  // 4. Delete Mutation with Optimistic Update
+  // 4. Update Mutation (New)
+  const updateMutation = useMutation({
+    mutationFn: async (updatedBookmark) => {
+      const { id, ...updates } = updatedBookmark
+      const { data, error } = await supabase
+        .from('bookmarks')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (error) throw error
+      return data
+    },
+    onMutate: async (updatedBookmark) => {
+      await queryClient.cancelQueries({ queryKey: ['bookmarks'] })
+      const previousBookmarks = queryClient.getQueryData(['bookmarks'])
+
+      queryClient.setQueryData(['bookmarks'], (old = []) =>
+        old.map(b => b.id === updatedBookmark.id ? { ...b, ...updatedBookmark } : b)
+      )
+      return { previousBookmarks }
+    },
+    onError: (err, newBookmark, context) => {
+      queryClient.setQueryData(['bookmarks'], context.previousBookmarks)
+      alert(err.message)
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['bookmarks'] })
+      resetForm()
+    }
+  })
+
+  // 5. Delete Mutation
   const deleteMutation = useMutation({
     mutationFn: async (id) => {
       const { error } = await supabase.from('bookmarks').delete().match({ id })
@@ -91,14 +118,10 @@ export default function Home() {
     },
     onMutate: async (id) => {
       await queryClient.cancelQueries({ queryKey: ['bookmarks'] })
-
       const previousBookmarks = queryClient.getQueryData(['bookmarks'])
-
-      // Optimistically remove
       queryClient.setQueryData(['bookmarks'], (old = []) =>
         old.filter((bookmark) => bookmark.id !== id)
       )
-
       return { previousBookmarks }
     },
     onError: (err, id, context) => {
@@ -110,19 +133,22 @@ export default function Home() {
     },
   })
 
-  // 5. Realtime Sync (Syncs cache without refetching)
+  // 6. Realtime Sync
   useEffect(() => {
     if (!session?.user?.id) return
 
     const channel = supabase
       .channel(`realtime_bookmarks_${session.user.id}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'bookmarks' }, (payload) => {
-        // Manually update cache without refetching
         queryClient.setQueryData(['bookmarks'], (old = []) => {
-          // Avoid adding if it's already there (e.g. from our own optimistic update that just resolved)
           if (old.find(b => b.id === payload.new.id)) return old
           return [payload.new, ...old]
         })
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'bookmarks' }, (payload) => {
+        queryClient.setQueryData(['bookmarks'], (old = []) =>
+          old.map(b => b.id === payload.new.id ? payload.new : b)
+        )
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'bookmarks' }, (payload) => {
         queryClient.setQueryData(['bookmarks'], (old = []) =>
@@ -145,24 +171,58 @@ export default function Home() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
-    queryClient.setQueryData(['bookmarks'], []) // Clear cache on logout
+    queryClient.setQueryData(['bookmarks'], [])
   }
 
-  const handleAdd = (e) => {
+  const resetForm = () => {
+    setTitle('')
+    setUrl('')
+    setTags([])
+    setCategory('')
+    setEditingId(null)
+  }
+
+  const handleSave = (e) => {
     e.preventDefault()
     if (!title || !url) return alert('Please fill in all fields')
 
-    addMutation.mutate({
-      title,
-      url,
-      tags,
-      category,
-      user_id: session.user.id,
-    })
+    if (editingId) {
+      updateMutation.mutate({
+        id: editingId,
+        title,
+        url,
+        tags,
+        category,
+        // Keep user_id in case needed, but usually not updated
+      })
+    } else {
+      addMutation.mutate({
+        title,
+        url,
+        tags,
+        category,
+        user_id: session.user.id,
+      })
+    }
+  }
+
+  const handleEdit = (bookmark) => {
+    setTitle(bookmark.title)
+    setUrl(bookmark.url)
+    setTags(bookmark.tags || [])
+    setCategory(bookmark.category || '')
+    setEditingId(bookmark.id)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const handleCancelEdit = () => {
+    resetForm()
   }
 
   const handleDelete = (id) => {
-    deleteMutation.mutate(id)
+    if (window.confirm('Are you sure you want to delete this bookmark?')) {
+      deleteMutation.mutate(id)
+    }
   }
 
   if (!session) {
@@ -172,27 +232,33 @@ export default function Home() {
   return (
     <div className="w-full space-y-8">
       {/* Header */}
-      <div className="flex justify-between items-center py-6">
+      <div className="glass-card flex justify-between items-center py-4 px-6 rounded-2xl mb-8">
         <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-md shadow-indigo-200">
-            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-violet-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200 ring-1 ring-black/5">
+            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
           </div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">Aurora</h1>
+          <div>
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight leading-none">Aurora</h1>
+            <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">Workspace</span>
+          </div>
         </div>
         <button
           onClick={handleLogout}
-          className="text-sm text-slate-500 hover:text-slate-900 transition-colors flex items-center gap-2"
+          className="group flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-red-600 hover:bg-red-50 px-4 py-2 rounded-lg transition-all"
         >
-          Sign Out
+          <span>Sign Out</span>
+          <svg className="w-4 h-4 text-slate-400 group-hover:text-red-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
         </button>
       </div>
 
       {/* Main Content */}
       <div className="space-y-8">
         <BookmarkForm
-          onSubmit={handleAdd}
+          onSubmit={handleSave}
           title={title}
           setTitle={setTitle}
           url={url}
@@ -201,7 +267,9 @@ export default function Home() {
           setTags={setTags}
           category={category}
           setCategory={setCategory}
-          loading={addMutation.isPending}
+          loading={addMutation.isPending || updateMutation.isPending}
+          isEditing={!!editingId}
+          onCancel={handleCancelEdit}
         />
 
         <div className="space-y-4">
@@ -216,6 +284,7 @@ export default function Home() {
           <BookmarkList
             bookmarks={bookmarks}
             onDelete={handleDelete}
+            onEdit={handleEdit}
           />
         </div>
       </div>

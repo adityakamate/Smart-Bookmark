@@ -102,9 +102,23 @@ Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
+## 🌐 Authentication & Deployment
+
+After deploying (e.g., to Vercel), you must update your authentication settings:
+
+1.  **Supabase Auth Settings**:
+    *   Go to **Authentication > URL Configuration**.
+    *   Add your production URL (e.g., `https://your-project.vercel.app`) to **Site URL** and **Redirect URLs**.
+
+2.  **Google Cloud Console (OAuth)**:
+    *   Go to **APIs & Services > Credentials**.
+    *   Edit your OAuth 2.0 Client ID.
+    *   Add your production URL to **Authorized JavaScript origins** (e.g., `https://your-project.vercel.app`).
+    *   Add your production redirect URL to **Authorized redirect URIs** (e.g., `https://your-project.vercel.app/auth/callback` if using Supabase Auth helpers, or just the domain if using simple auth).
+
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is open source and available under the [MIT License](LICENSE). - see the [LICENSE](LICENSE) file for details.
 
 <div align="center">
   <sub>Built with ❤️ by You</sub>

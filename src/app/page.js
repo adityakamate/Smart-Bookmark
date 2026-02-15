@@ -17,15 +17,30 @@ export default function Home() {
   const queryClient = useQueryClient()
 
   // 1. Session Management
+  // 1. Session Management
   useEffect(() => {
+    // Check active session immediately
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
+      if (session) {
+        setSession(session)
+      }
     })
 
+    // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        setSession(session)
+        // Clear the hash from the URL to clean it up
+        if (window.location.hash && window.location.hash.includes('access_token')) {
+          window.history.replaceState(null, '', window.location.pathname);
+        }
+      } else if (event === 'SIGNED_OUT') {
+        setSession(null)
+      } else if (session) {
+        setSession(session)
+      }
     })
 
     return () => subscription.unsubscribe()

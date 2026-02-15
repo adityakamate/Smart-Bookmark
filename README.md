@@ -1,109 +1,111 @@
-# Aurora - Smart Bookmark Manager 🚀
+# ✦ Aurora
 
-Aurora is a premium, AI-powered bookmark manager designed solely for speed and aesthetics. It helps you organize your digital life with automatic categorization, tagging, and seamless synchronization across devices.
+> **The Intelligent Bookmark Manager for the Modern Web.**
+> *Fast. Beautiful. AI-Powered.*
 
-![Aurora Dashboard](https://via.placeholder.com/1200x600?text=Aurora+Dashboard+Preview) 
+![Aurora Banner](https://via.placeholder.com/1200x400?text=Aurora+Dashboard+Preview)
 *(Replace with actual screenshot)*
 
-## ✨ Features
+---
 
--   **🧠 AI Auto-Tagging**: Automatically analyzes your links using **Groq (Llama 3)** to generate relevant tags and categories.
--   **⚡ Real-time Sync**: Built on **Supabase**, your bookmarks sync instantly across all open tabs and devices.
--   **🎨 Premium UI**: A modern "Glassmorphism" aesthetic with smooth **Framer Motion** animations.
--   **🔍 Smart Search**: (Coming Soon)
--   **🔐 Secure Auth**: Google Authentication via Supabase Auth.
--   **📱 Fully Responsive**: Looks great on desktop, tablet, and mobile.
+<div align="center">
+
+![Next.js](https://img.shields.io/badge/Next.js-14-black?style=for-the-badge&logo=next.js&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-Database-3ecf8e?style=for-the-badge&logo=supabase&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind-CSS-38bdf8?style=for-the-badge&logo=tailwind-css&logoColor=white)
+![Framer Motion](https://img.shields.io/badge/Framer-Motion-black?style=for-the-badge&logo=framer&logoColor=white)
+![Groq AI](https://img.shields.io/badge/Groq-AI-f55036?style=for-the-badge&logo=openai&logoColor=white)
+
+</div>
+
+---
+
+## 🌟 Overview
+
+**Aurora** isn't just a place to store links—it's a smart workspace. It uses advanced AI to automatically categorize and tag your bookmarks, ensuring you never lose a link again. Built with a "Privacy First" and "Performance First" mindset, it syncs instantly across all your devices.
+
+## ✨ Key Features
+
+| Feature | Description |
+| :--- | :--- |
+| **🧠 AI Auto-Tagging** | Powered by **Groq (Llama 3)**, Aurora analyzes your links and adds relevant tags & categories automatically. |
+| **⚡ Real-time Sync** | Bookmarks update instantly across all open tabs and devices thanks to **Supabase Realtime**. |
+| **🎨 Premium Design** | A stunning glassmorphism UI with fluid **Framer Motion** animations. |
+| **🔐 Secure Auth** | Enterprise-grade security with Google OAuth via Supabase. |
+| **📱 Responsive** | specific mobile-first design for managing links on the go. |
 
 ## 🛠️ Tech Stack
 
--   **Framework**: [Next.js 14](https://nextjs.org/) (App Router)
--   **Styling**: [Tailwind CSS](https://tailwindcss.com/)
--   **Database & Auth**: [Supabase](https://supabase.com/)
--   **State Management**: [TanStack Query](https://tanstack.com/query/latest)
--   **Animations**: [Framer Motion](https://www.framer.com/motion/)
--   **AI Integration**: [Groq SDK](https://groq.com/) (Llama 3.3)
+*   **Frontend**: [Next.js 14](https://nextjs.org/) (App Router), [React](https://react.dev/)
+*   **Styling**: [Tailwind CSS](https://tailwindcss.com/)
+*   **Database**: [Supabase](https://supabase.com/) (PostgreSQL)
+*   **State**: [TanStack Query](https://tanstack.com/query/latest)
+*   **AI Engine**: [Groq SDK](https://groq.com/) (Llama 3.3 70B)
+
+---
 
 ## 🚀 Getting Started
 
-### Prerequisites
+Follow these steps to set up your own instance of Aurora.
 
--   Node.js 18+
--   Yarn or npm
--   A Supabase Project
--   A Groq API Key
+### 1. Prerequisites
+*   Node.js 18+
+*   Yarn or npm
+*   A Supabase Project
+*   A Groq API Key
 
-### Installation
+### 2. Installation
 
-1.  **Clone the repository**:
-    ```bash
-    git clone https://github.com/yourusername/aurora.git
-    cd aurora
-    ```
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/aurora.git
 
-2.  **Install dependencies**:
-    ```bash
-    yarn install
-    ```
+# Navigate to the project directory
+cd aurora
 
-3.  **Configure Environment Variables**:
-    Create a `.env.local` file in the root directory:
-    ```env
-    NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-    NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-    GROQ_API_KEY=your_groq_api_key
-    ```
-
-4.  **Run with Development Server**:
-    ```bash
-    yarn dev
-    ```
-
-5.  Open [http://localhost:3000](http://localhost:3000) to see the app.
-
-## 🗄️ Database Schema
-
-Run this SQL in your Supabase SQL Editor to set up the table:
-
-```sql
-create table bookmarks (
-  id uuid default gen_random_uuid() primary key,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  title text not null,
-  url text not null,
-  user_id uuid references auth.users not null,
-  tags text[] default array[]::text[],
-  category text
-);
-
--- Enable RLS
-alter table bookmarks enable row level security;
-
--- Policies
-create policy "Users can view their own bookmarks" on bookmarks
-  for select using (auth.uid() = user_id);
-
-create policy "Users can insert their own bookmarks" on bookmarks
-  for insert with check (auth.uid() = user_id);
-
-create policy "Users can update their own bookmarks" on bookmarks
-  for update using (auth.uid() = user_id);
-
-create policy "Users can delete their own bookmarks" on bookmarks
-  for delete using (auth.uid() = user_id);
+# Install dependencies
+yarn install
 ```
 
-## ⚡ Supabase Setup (Quick)
+### 3. Configuration
 
-Instead of manually running SQL, you can use the provided setup file:
+Create a `.env.local` file in the root directory:
 
-1.  Open your Supabase Project Dashboard.
-2.  Go to the **SQL Editor**.
-3.  Click **New Query**.
-4.  Copy the contents of `supabase_setup.sql` from this repository.
-5.  Paste it into the editor and click **Run**.
+```env
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+GROQ_API_KEY=your_groq_api_key
+```
 
-This will automatically create the table and apply all security policies.
+### 4. Database Setup
+
+You have two options to set up the database:
+
+**Option A: Quick Setup (Recommended)**
+1.  Open parts of `supabase_setup.sql` from this repo.
+2.  Paste it into your Supabase **SQL Editor**.
+3.  Click **Run**.
+
+**Option B: Manual Schema**
+(See `supabase_setup.sql` for full schema details)
+
+### 5. Run Locally
+
+```bash
+yarn dev
+```
+Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## 📄 License
 
-This project is open source and available under the [MIT License](LICENSE).
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+<div align="center">
+  <sub>Built with ❤️ by You</sub>
+</div>

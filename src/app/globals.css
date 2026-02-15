@@ -32,16 +32,25 @@
 
 body {
   color: rgb(var(--text-primary));
-  background-color: rgb(var(--bg-primary));
+  background: radial-gradient(circle at 50% 0%, #ffffff 0%, #f1f5f9 100%);
   font-family: var(--font-inter), sans-serif;
+  min-height: 100vh;
 }
 
 /* Dashboard Utilities */
 .dashboard-card {
-  background-color: rgb(var(--card-bg));
+  background-color: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
   border-radius: 1rem;
-  border: 1px solid rgb(var(--border-color));
+  border: 1px solid rgba(255, 255, 255, 0.6);
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
 }
 
 .dashboard-input {

@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabaseClient'
 import Login from '@/components/Login'
 import BookmarkForm from '@/components/BookmarkForm'
@@ -8,11 +9,11 @@ import BookmarkList from '@/components/BookmarkList'
 
 export default function Home() {
   const [session, setSession] = useState(null)
-  const [bookmarks, setBookmarks] = useState([])
   const [title, setTitle] = useState('')
   const [url, setUrl] = useState('')
-  const [loading, setLoading] = useState(false)
+  const queryClient = useQueryClient()
 
+  // 1. Session Management
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
@@ -27,39 +28,109 @@ export default function Home() {
     return () => subscription.unsubscribe()
   }, [])
 
-  // 2. Data & Realtime Effect
-  useEffect(() => {
-    // Guard clause: Only run if we have a valid user ID
-    if (!session?.user?.id) return
-
-    const fetchBookmarks = async () => {
+  // 2. Fetch Bookmarks with useQuery
+  const { data: bookmarks = [], isLoading } = useQuery({
+    queryKey: ['bookmarks'],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from('bookmarks')
         .select('*')
         .order('created_at', { ascending: false })
 
-      if (error) console.error('Error fetching:', error)
-      if (data) setBookmarks(data)
-    }
+      if (error) throw error
+      return data
+    },
+    enabled: !!session?.user?.id, // Only fetch if we have a user
+  })
 
-    fetchBookmarks()
+  // 3. Add Mutation with Optimistic Update
+  const addMutation = useMutation({
+    mutationFn: async (newBookmark) => {
+      const { data, error } = await supabase
+        .from('bookmarks')
+        .insert(newBookmark)
+        .select()
+        .single()
 
-    // Create a unique channel name to avoid collisions in dev
+      if (error) throw error
+      return data
+    },
+    onMutate: async (newBookmark) => {
+      await queryClient.cancelQueries({ queryKey: ['bookmarks'] })
+
+      const previousBookmarks = queryClient.getQueryData(['bookmarks'])
+
+      // Optimistically update to the new value
+      queryClient.setQueryData(['bookmarks'], (old = []) => [
+        { ...newBookmark, id: 'temp-' + Date.now(), created_at: new Date().toISOString() },
+        ...old,
+      ])
+
+      return { previousBookmarks }
+    },
+    onError: (err, newBookmark, context) => {
+      queryClient.setQueryData(['bookmarks'], context.previousBookmarks)
+      alert(err.message)
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['bookmarks'] })
+      setTitle('')
+      setUrl('')
+    },
+  })
+
+  // 4. Delete Mutation with Optimistic Update
+  const deleteMutation = useMutation({
+    mutationFn: async (id) => {
+      const { error } = await supabase.from('bookmarks').delete().match({ id })
+      if (error) throw error
+    },
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ['bookmarks'] })
+
+      const previousBookmarks = queryClient.getQueryData(['bookmarks'])
+
+      // Optimistically remove
+      queryClient.setQueryData(['bookmarks'], (old = []) =>
+        old.filter((bookmark) => bookmark.id !== id)
+      )
+
+      return { previousBookmarks }
+    },
+    onError: (err, id, context) => {
+      queryClient.setQueryData(['bookmarks'], context.previousBookmarks)
+      alert(err.message)
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['bookmarks'] })
+    },
+  })
+
+  // 5. Realtime Sync (Syncs cache without refetching)
+  useEffect(() => {
+    if (!session?.user?.id) return
+
     const channel = supabase
       .channel(`realtime_bookmarks_${session.user.id}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'bookmarks' }, (payload) => {
-        setBookmarks((prev) => [payload.new, ...prev])
+        // Manually update cache without refetching
+        queryClient.setQueryData(['bookmarks'], (old = []) => {
+          // Avoid adding if it's already there (e.g. from our own optimistic update that just resolved)
+          if (old.find(b => b.id === payload.new.id)) return old
+          return [payload.new, ...old]
+        })
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'bookmarks' }, (payload) => {
-        setBookmarks((prev) => prev.filter((bookmark) => bookmark.id !== payload.old.id))
+        queryClient.setQueryData(['bookmarks'], (old = []) =>
+          old.filter((bookmark) => bookmark.id !== payload.old.id)
+        )
       })
       .subscribe()
 
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [session?.user?.id])
-
+  }, [session?.user?.id, queryClient])
 
 
   const handleLogin = async () => {
@@ -70,36 +141,22 @@ export default function Home() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
-    setBookmarks([])
+    queryClient.setQueryData(['bookmarks'], []) // Clear cache on logout
   }
 
-  const addBookmark = async (e) => {
+  const handleAdd = (e) => {
     e.preventDefault()
     if (!title || !url) return alert('Please fill in all fields')
 
-    setLoading(true)
-    const { error } = await supabase.from('bookmarks').insert({
+    addMutation.mutate({
       title,
       url,
       user_id: session.user.id,
     })
-    setLoading(false)
-
-    if (error) {
-      console.error(error)
-      alert(error.message)
-    } else {
-      setTitle('')
-      setUrl('')
-    }
   }
 
-  const deleteBookmark = async (id) => {
-    const { error } = await supabase.from('bookmarks').delete().match({ id })
-    if (error) {
-      console.error(error)
-      alert(error.message)
-    }
+  const handleDelete = (id) => {
+    deleteMutation.mutate(id)
   }
 
   if (!session) {
@@ -109,7 +166,7 @@ export default function Home() {
   return (
     <div className="w-full space-y-8">
       {/* Header */}
-      <div className="flex justify-between items-center py-2">
+      <div className="flex justify-between items-center py-6">
         <div className="flex items-center space-x-3">
           <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-md shadow-indigo-200">
             <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -129,23 +186,26 @@ export default function Home() {
       {/* Main Content */}
       <div className="space-y-8">
         <BookmarkForm
-          onSubmit={addBookmark}
+          onSubmit={handleAdd}
           title={title}
           setTitle={setTitle}
           url={url}
           setUrl={setUrl}
-          loading={loading}
+          loading={addMutation.isPending}
         />
 
         <div className="space-y-4">
           <div className="flex items-center justify-between px-1">
             <h2 className="text-label">Recently Added</h2>
-            <span className="text-label opacity-60 normal-case">{bookmarks.length} Items</span>
+            <div className="flex items-center gap-2">
+              {isLoading && <span className="text-xs text-indigo-500 animate-pulse">Syncing...</span>}
+              <span className="text-label opacity-60 normal-case">{bookmarks.length} Items</span>
+            </div>
           </div>
 
           <BookmarkList
             bookmarks={bookmarks}
-            onDelete={deleteBookmark}
+            onDelete={handleDelete}
           />
         </div>
       </div>

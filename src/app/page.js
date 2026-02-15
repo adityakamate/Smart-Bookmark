@@ -11,6 +11,8 @@ export default function Home() {
   const [session, setSession] = useState(null)
   const [title, setTitle] = useState('')
   const [url, setUrl] = useState('')
+  const [tags, setTags] = useState([])
+  const [category, setCategory] = useState('')
   const queryClient = useQueryClient()
 
   // 1. Session Management
@@ -76,6 +78,8 @@ export default function Home() {
       queryClient.invalidateQueries({ queryKey: ['bookmarks'] })
       setTitle('')
       setUrl('')
+      setTags([])
+      setCategory('')
     },
   })
 
@@ -151,6 +155,8 @@ export default function Home() {
     addMutation.mutate({
       title,
       url,
+      tags,
+      category,
       user_id: session.user.id,
     })
   }
@@ -191,6 +197,10 @@ export default function Home() {
           setTitle={setTitle}
           url={url}
           setUrl={setUrl}
+          tags={tags}
+          setTags={setTags}
+          category={category}
+          setCategory={setCategory}
           loading={addMutation.isPending}
         />
 

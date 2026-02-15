@@ -294,7 +294,6 @@ export default function Home() {
               <span className="text-sm font-semibold text-slate-700 max-w-[150px] truncate">
                 {session?.user?.user_metadata?.full_name || session?.user?.email?.split('@')[0]}
               </span>
-              <span className="text-[10px] text-slate-400 font-medium">Free Plan</span>
             </div>
           </div>
 

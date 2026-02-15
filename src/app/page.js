@@ -1,65 +1,173 @@
-import Image from "next/image";
+'use client'
+
+import { useEffect, useState } from 'react'
+import { supabase } from '@/lib/supabaseClient'
+import Login from '@/components/Login'
+import BookmarkForm from '@/components/BookmarkForm'
+import BookmarkList from '@/components/BookmarkList'
 
 export default function Home() {
+  const [session, setSession] = useState(null)
+  const [bookmarks, setBookmarks] = useState([])
+  const [title, setTitle] = useState('')
+  const [url, setUrl] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session)
+    })
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  // 2. Data & Realtime Effect
+  useEffect(() => {
+    // Guard clause: Only run if we have a valid user ID
+    if (!session?.user?.id) return
+
+    const fetchBookmarks = async () => {
+      const { data, error } = await supabase
+        .from('bookmarks')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (error) console.error('Error fetching:', error)
+      if (data) setBookmarks(data)
+    }
+
+    fetchBookmarks()
+
+    // Create a unique channel name to avoid collisions in dev
+    const channel = supabase
+      .channel(`realtime_bookmarks_${session.user.id}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'bookmarks' }, (payload) => {
+        setBookmarks((prev) => [payload.new, ...prev])
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'bookmarks' }, (payload) => {
+        setBookmarks((prev) => prev.filter((bookmark) => bookmark.id !== payload.old.id))
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [session?.user?.id])
+
+  // Computed Stats
+  const weeklyNew = bookmarks.filter(b => {
+    const date = new Date(b.created_at);
+    const now = new Date();
+    const oneWeekAgo = new Date(now.setDate(now.getDate() - 7));
+    return date > oneWeekAgo;
+  }).length;
+
+  const handleLogin = async () => {
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+    })
+  }
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    setBookmarks([])
+  }
+
+  const addBookmark = async (e) => {
+    e.preventDefault()
+    if (!title || !url) return alert('Please fill in all fields')
+
+    setLoading(true)
+    const { error } = await supabase.from('bookmarks').insert({
+      title,
+      url,
+      user_id: session.user.id,
+    })
+    setLoading(false)
+
+    if (error) {
+      console.error(error)
+      alert(error.message)
+    } else {
+      setTitle('')
+      setUrl('')
+    }
+  }
+
+  const deleteBookmark = async (id) => {
+    const { error } = await supabase.from('bookmarks').delete().match({ id })
+    if (error) {
+      console.error(error)
+      alert(error.message)
+    }
+  }
+
+  if (!session) {
+    return <Login onLogin={handleLogin} />
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.js file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+        {/* Left Column: Form & List (Acting as Main Panel) */}
+        <div className="lg:col-span-8 space-y-8">
+          {/* Visual separation: Creating a "Recent Bookmarks" glass panel container */}
+          <div className="glass-card p-6 rounded-3xl min-h-[600px]">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-semibold text-white">Recent Bookmarks</h2>
+              <button className="text-slate-400 hover:text-white">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
+                </svg>
+              </button>
+            </div>
+
+            <BookmarkList
+              bookmarks={bookmarks}
+              onDelete={deleteBookmark}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+          </div>
         </div>
-      </main>
+
+        {/* Right Column: Widgets */}
+        <div className="lg:col-span-4 space-y-6">
+          {/* Gradient Add Button Area (Visible on Desktop) */}
+          <div className="bg-gradient-to-r from-indigo-500 to-purple-600 p-[1px] rounded-2xl">
+            <div className="bg-slate-900 rounded-2xl">
+              <BookmarkForm
+                onSubmit={addBookmark}
+                title={title}
+                setTitle={setTitle}
+                url={url}
+                setUrl={setUrl}
+                loading={loading}
+              />
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      {/* Floating Add Action Button for Mobile */}
+      <div className="fixed bottom-6 right-6 lg:hidden">
+        <button
+          onClick={() => document.querySelector('input[type="text"]').focus()}
+          className="w-14 h-14 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg shadow-indigo-500/30 text-white"
+        >
+          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+          </svg>
+        </button>
+      </div>
     </div>
-  );
+  )
 }

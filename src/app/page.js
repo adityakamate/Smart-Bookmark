@@ -68,10 +68,12 @@ export default function Home() {
         .from('bookmarks')
         .insert(newBookmark)
         .select()
-        .single()
 
       if (error) throw error
-      return data
+      if (!data || data.length === 0) {
+        throw new Error('Add failed: No data returned')
+      }
+      return data[0]
     },
     onMutate: async (newBookmark) => {
       await queryClient.cancelQueries({ queryKey: ['bookmarks'] })
@@ -92,38 +94,44 @@ export default function Home() {
     },
   })
 
-  // 4. Update Mutation (New)
+  // 4. Update Mutation 
   const updateMutation = useMutation({
     mutationFn: async (updatedBookmark) => {
-      const { id, ...updates } = updatedBookmark
+      const { id, ...updates } = updatedBookmark;
+
       const { data, error } = await supabase
         .from('bookmarks')
         .update(updates)
         .eq('id', id)
-        .select()
-        .single()
+        .select();
 
-      if (error) throw error
-      return data
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        throw new Error('Update failed: Bookmark not found or permission denied');
+      }
+
+      return data[0];
     },
     onMutate: async (updatedBookmark) => {
-      await queryClient.cancelQueries({ queryKey: ['bookmarks'] })
-      const previousBookmarks = queryClient.getQueryData(['bookmarks'])
+      await queryClient.cancelQueries({ queryKey: ['bookmarks'] });
+      const previousBookmarks = queryClient.getQueryData(['bookmarks']);
 
       queryClient.setQueryData(['bookmarks'], (old = []) =>
-        old.map(b => b.id === updatedBookmark.id ? { ...b, ...updatedBookmark } : b)
-      )
-      return { previousBookmarks }
+        old.map((b) => (b.id === updatedBookmark.id ? { ...b, ...updatedBookmark } : b))
+      );
+
+      return { previousBookmarks };
     },
     onError: (err, newBookmark, context) => {
-      queryClient.setQueryData(['bookmarks'], context.previousBookmarks)
-      alert(err.message)
+      queryClient.setQueryData(['bookmarks'], context.previousBookmarks);
+      alert(err.message);
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['bookmarks'] })
-      resetForm()
-    }
-  })
+      queryClient.invalidateQueries({ queryKey: ['bookmarks'] });
+      resetForm();
+    },
+  });
 
   // 5. Delete Mutation
   const deleteMutation = useMutation({
@@ -181,6 +189,9 @@ export default function Home() {
   const handleLogin = async () => {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/`,
+      },
     })
   }
 

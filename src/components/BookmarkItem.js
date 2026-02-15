@@ -36,6 +36,9 @@ export default function BookmarkItem({ bookmark, onDelete, onEdit }) {
                     <h3 className="text-base font-medium text-slate-700 group-hover:text-indigo-600 transition-colors truncate block mb-1">
                         {bookmark.title}
                     </h3>
+                    <p className="text-xs text-slate-400 truncate mb-2 font-mono opacity-80 max-w-md">
+                        {bookmark.url}
+                    </p>
 
                     {/* Tags & Meta */}
                     <div className="flex flex-wrap items-center gap-2">
